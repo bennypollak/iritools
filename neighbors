@@ -1,0 +1,75 @@
+#/bin/bash
+#set -u
+count=1
+function usage {
+    echo "usage: $0 [fhvb] [-l sec] [-i iriHost] [-r|-a|-g] [uri1 [uri2...]]"
+    exit $1
+}
+
+function backup {
+	test -d backup || mkdir backup
+	cp $1 backup/$1.`date +"%m%d%Y-%H:%M:%S"`
+}
+function jqf {
+	max=`</tmp/$$`
+    jq '[.neighbors [] | { t: .connectionType, a: .address, n: .numberOfAllTransactions }]' | jq '.[] | select(.n !=0)' | awk '/"t"/ { n++ ; txt=$NF"://"} ; /"a"/ { txt=txt""$NF} ; /"n"/ { txt=txt ; printf("%s ", txt)} ; END { printf("\nCount: %s ", n)}'  | sed 's/[",]//g' |tee /tmp/$$
+	count=`awk '/Count:/ {print $NF}' /tmp/$$`
+	if (( count > max )) ; then
+		max=$count
+	fi
+	synch=`./checksynch`
+	echo "Max: $max $synch"
+	echo $max > /tmp/$$
+}
+host=localhost
+max=0
+echo 0 > /tmp/$$
+command=getNeighbors
+tail="cat"
+filter="cat"
+loop=
+while getopts "tl:i:fvhbgar" o; do
+    case "${o}" in
+    a) command=addNeighbors;;
+    r) command=removeNeighbors;;
+    g) command=getNeighbors;;
+    t) command=getTips;;
+    b) tail="js-beautify";;
+    f) filter="jqf";;
+    l) loop="$OPTARG";;
+    i) host="$OPTARG";;
+    h) usage 0;;
+    v) set -x;;
+    *) usage 1;;
+    esac
+done
+shift $((OPTIND-1))
+uris='[ '
+sep=''
+if [[ $command == "addNeighbors" || $command == "removeNeighbors" ]] ; then
+	backup iri.ini
+fi
+for i in $* ; do
+	if [[ $command == "removeNeighbors" ]] ; then
+		sed -i "s;\(^NEIGHBORS.*\)$i;\1;" iri.ini
+		echo "Removing $i"
+	fi
+    uris="$uris$sep'$i'"
+    sep=' , '
+done
+uris="$uris ]"
+if [[ $command == "addNeighbors" ]] ; then
+	sed -i "s;^NEIGHBORS.*$;& ${*};" iri.ini
+	echo "Adding $*"
+fi
+exit
+while true
+do
+    curl -s http://$host:14265 \
+      -X POST \
+      -H 'Content-Type: application/json' \
+      -H 'X-IOTA-API-Version: 1.4.1' \
+      -d "{'command': '$command', 'uris': $uris}" | $tail | $filter
+    test -z $loop && exit
+    sleep $loop
+done
