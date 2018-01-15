@@ -1,8 +1,10 @@
 #/bin/bash
+set -u
 #set -u
 count=1
+separator=" "
 function usage {
-    echo "usage: $0 [fhvb] [-l sec] [-i iriHost] [-r|-a|-g] [uri1 [uri2...]]"
+    echo "usage: $0 [sfnhvb] [-l sec] [-i iriHost] [-r|-a|-g] [uri1 [uri2...]]"
     exit $1
 }
 
@@ -12,7 +14,7 @@ function backup {
 }
 function jqf {
 	max=`</tmp/$$`
-    jq '[.neighbors [] | { t: .connectionType, a: .address, n: .numberOfAllTransactions }]' | jq '.[] | select(.n !=0)' | awk '/"t"/ { n++ ; txt=$NF"://"} ; /"a"/ { txt=txt""$NF} ; /"n"/ { txt=txt ; printf("%s ", txt)} ; END { printf("\nCount: %s ", n)}'  | sed 's/[",]//g' |tee /tmp/$$
+    jq '[.neighbors [] | { t: .connectionType, a: .address, n: .numberOfAllTransactions }]' | jq '.[] | select(.n !=0)' | awk -v sep="${separator}" '/"t"/ { n++ ; txt=$NF"://"} ; /"a"/ { txt=txt""$NF} ; /"n"/ { txt=txt ; printf("%s%s", sep, txt)} ; END { printf("\nCount: %s ", n)}'  | sed 's/[",]//g' |tee /tmp/$$
 	count=`awk '/Count:/ {print $NF}' /tmp/$$`
 	if (( count > max )) ; then
 		max=$count
@@ -28,14 +30,16 @@ command=getNeighbors
 tail="cat"
 filter="cat"
 loop=
-while getopts "tl:i:fvhbgar" o; do
+while getopts "sntl:i:fvhbgar" o; do
     case "${o}" in
     a) command=addNeighbors;;
     r) command=removeNeighbors;;
     g) command=getNeighbors;;
     t) command=getTips;;
+    n) command=getNodeInfo;;
     b) tail="js-beautify";;
     f) filter="jqf";;
+    s) separator="\n";;
     l) loop="$OPTARG";;
     i) host="$OPTARG";;
     h) usage 0;;
@@ -62,7 +66,7 @@ if [[ $command == "addNeighbors" ]] ; then
 	sed -i "s;^NEIGHBORS.*$;& ${*};" iri.ini
 	echo "Adding $*"
 fi
-exit
+
 while true
 do
     curl -s http://$host:14265 \
