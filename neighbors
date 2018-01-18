@@ -14,13 +14,14 @@ function backup {
 }
 function jqf {
 	max=`</tmp/$$`
-    jq '[.neighbors [] | { t: .connectionType, a: .address, n: .numberOfAllTransactions }]' | jq '.[] | select(.n !=0)' | awk -v sep="${separator}" '/"t"/ { n++ ; txt=$NF"://"} ; /"a"/ { txt=txt""$NF} ; /"n"/ { txt=txt ; printf("%s%s", sep, txt)} ; END { printf("\nCount: %s ", n)}'  | sed 's/[",]//g' |tee /tmp/$$
+	time=`date +"%H:%M:%S"`
+    jq '[.neighbors [] | { t: .connectionType, a: .address, n: .numberOfAllTransactions }]' | jq '.[] | select(.n !=0)' | awk -v time="$time" -v sep="${separator}" '/"t"/ { n++ ; txt=$NF"://"} ; /"a"/ { txt=txt""$NF} ; /"n"/ { txt=txt ; printf("%s%s", sep, txt)} ; END { printf("\n%s Count: %s ", time, n)}'  | sed 's/[",]//g' |tee /tmp/$$
 	count=`awk '/Count:/ {print $NF}' /tmp/$$`
 	if (( count > max )) ; then
 		max=$count
 	fi
 	synch=`./checksynch`
-	echo `date +"%H:%M:%S"`" Max: $max $synch"
+	echo "Max: $max $synch"
 	echo $max > /tmp/$$
 }
 host=crypto
