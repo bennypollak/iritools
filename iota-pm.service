@@ -1,0 +1,14 @@
+[Unit]
+Description=IOTA Peer Manager
+After=network.target
+
+[Service]
+User=benny
+Group=benny
+Type=simple
+ExecStart=/bin/bash /home/benny/dev/iota/iri/start-pm.sh
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
