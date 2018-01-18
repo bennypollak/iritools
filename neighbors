@@ -20,10 +20,10 @@ function jqf {
 		max=$count
 	fi
 	synch=`./checksynch`
-	echo "Max: $max $synch"
+	echo `date +"%H:%M:%S"`" Max: $max $synch"
 	echo $max > /tmp/$$
 }
-host=localhost
+host=crypto
 max=0
 echo 0 > /tmp/$$
 command=getNeighbors
